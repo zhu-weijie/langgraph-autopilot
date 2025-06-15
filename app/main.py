@@ -35,7 +35,9 @@ def run_agent_task(job_id: int):
     try:
         final_state = agent.invoke(initial_state)
         print("---AGENT RUN COMPLETED---")
-        print(final_state)
+        print("Final Agent State:")
+        import json
+        print(json.dumps(final_state, indent=2))
         job.status = models.JobStatus.COMPLETED
     except Exception as e:
         print(f"---AGENT RUN FAILED: {e}---")

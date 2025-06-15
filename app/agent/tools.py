@@ -78,5 +78,6 @@ def list_repository_files(state: dict) -> dict:
                 full_path = os.path.join(root, file)
                 relative_path = os.path.relpath(full_path, repo_path)
                 file_list.append(relative_path)
-
-    return {"repo_file_list": "\n".join(file_list)}
+    file_list_str = "\n".join(file_list)
+    print(f"Found {len(file_list)} files.")
+    return {"repo_file_list": file_list_str}
