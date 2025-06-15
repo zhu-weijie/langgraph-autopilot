@@ -15,3 +15,8 @@ class Job(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class JobAccepted(BaseModel):
+    message: str
+    job_id: int
