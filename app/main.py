@@ -1,7 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-import os
-import shutil
 from . import models, schemas, database
 from .agent.graph import create_agent_graph
 from .agent.state import AppState
@@ -37,18 +35,13 @@ def run_agent_task(job_id: int):
         print("---AGENT RUN COMPLETED---")
         print("Final Agent State:")
         import json
+
         print(json.dumps(final_state, indent=2))
         job.status = models.JobStatus.COMPLETED
     except Exception as e:
         print(f"---AGENT RUN FAILED: {e}---")
         job.status = models.JobStatus.FAILED
     finally:
-        if final_state and final_state.get("repo_local_path"):
-            repo_path = final_state["repo_local_path"]
-            print(f"Cleaning up temporary directory: {repo_path}")
-            if os.path.exists(repo_path):
-                shutil.rmtree(repo_path)
-
         db.commit()
         db.close()
 
