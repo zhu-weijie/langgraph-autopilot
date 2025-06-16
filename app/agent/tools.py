@@ -1,6 +1,5 @@
 import os
 import subprocess
-import tempfile
 from github import Github, GithubException
 from urllib.parse import urlparse
 from dotenv import load_dotenv
@@ -27,29 +26,49 @@ def read_github_issue(state: dict) -> dict:
         return {"error": f"Failed to read issue: {e}"}
 
 
-def clone_repo(state: dict) -> dict:
-    print("---CLONING REPOSITORY---")
+def prepare_repo(state: dict) -> dict:
+    print("---PREPARING REPOSITORY---")
     repo_full_name = state.get("repo_full_name")
     if not repo_full_name:
         return {"error": "Repository name not found in state."}
 
-    job_id_for_path = repo_full_name.replace("/", "-")
-    temp_dir = tempfile.mkdtemp(prefix=f"job-{job_id_for_path}-")
+    repos_dir = "/code/repos"
+    repo_dir_name = repo_full_name.replace("/", "__")
+    repo_path = os.path.join(repos_dir, repo_dir_name)
 
-    repo_url = f"https://github.com/{repo_full_name}.git"
-    print(f"Cloning {repo_url} into {temp_dir}")
+    if os.path.exists(repo_path):
+        print(f"Repository already exists at {repo_path}. Pulling latest changes.")
+        try:
+            subprocess.run(
+                ["git", "pull"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print("Successfully pulled latest changes.")
+        except subprocess.CalledProcessError as e:
+            error_message = f"Git pull failed: {e.stderr}"
+            print(error_message)
+            return {"error": error_message}
+    else:
+        print(f"Repository not found. Cloning into {repo_path}.")
+        repo_url = f"https://github.com/{repo_full_name}.git"
+        try:
+            os.makedirs(repos_dir, exist_ok=True)
+            subprocess.run(
+                ["git", "clone", repo_url, repo_path],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print("Successfully cloned repository.")
+        except subprocess.CalledProcessError as e:
+            error_message = f"Git clone failed: {e.stderr}"
+            print(error_message)
+            return {"error": error_message}
 
-    try:
-        subprocess.run(
-            ["git", "clone", repo_url, temp_dir],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return {"repo_local_path": temp_dir}
-    except subprocess.CalledProcessError as e:
-        print(f"Git clone failed with error: {e.stderr}")
-        return {"error": f"Git clone failed: {e.stderr}"}
+    return {"repo_local_path": repo_path}
 
 
 def list_repository_files(state: dict) -> dict:
