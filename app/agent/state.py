@@ -8,4 +8,5 @@ class AppState(TypedDict):
     repo_full_name: Optional[str]
     repo_local_path: Optional[str]
     repo_file_list: Optional[str]
+    file_to_change: Optional[str]
     error: Optional[str]

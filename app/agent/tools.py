@@ -3,6 +3,8 @@ import subprocess
 from github import Github, GithubException
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
@@ -100,3 +102,43 @@ def list_repository_files(state: dict) -> dict:
     file_list_str = "\n".join(file_list)
     print(f"Found {len(file_list)} files.")
     return {"repo_file_list": file_list_str}
+
+
+def identify_file_to_change(state: dict) -> dict:
+    print("---IDENTIFYING FILE TO CHANGE---")
+    llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=os.getenv("OPENAI_API_KEY"))
+
+    prompt_template = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an expert software engineer. Your task is to analyze a GitHub issue and a list of repository files to determine which single file is the most likely candidate to be modified to resolve the issue. "
+                "Respond with only the file path and nothing else. Do not add any explanation, commentary, or markdown formatting.",
+            ),
+            (
+                "user",
+                "Here is the GitHub issue:\n"
+                "**Title:** {issue_title}\n"
+                "**Body:** {issue_body}\n\n"
+                "Here is the list of all files in the repository:\n"
+                "{file_list}\n\n"
+                "Based on the issue and the file list, which single file should be modified? Return only the path to that file.",
+            ),
+        ]
+    )
+
+    chain = prompt_template | llm
+
+    print("Invoking LLM to identify file...")
+    response = chain.invoke(
+        {
+            "issue_title": state["issue_title"],
+            "issue_body": state["issue_body"],
+            "file_list": state["repo_file_list"],
+        }
+    )
+
+    file_path = response.content.strip()
+    print(f"LLM identified file: {file_path}")
+
+    return {"file_to_change": file_path}
