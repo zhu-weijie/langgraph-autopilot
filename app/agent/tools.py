@@ -142,3 +142,72 @@ def identify_file_to_change(state: dict) -> dict:
     print(f"LLM identified file: {file_path}")
 
     return {"file_to_change": file_path}
+
+
+def read_file_content(state: dict) -> dict:
+    print("---READING FILE CONTENT---")
+    repo_path = state["repo_local_path"]
+    file_path = state["file_to_change"]
+
+    if not file_path or not isinstance(file_path, str):
+        return {"error": f"Invalid file path provided: {file_path}"}
+
+    full_path = os.path.join(repo_path, file_path)
+
+    try:
+        with open(full_path, "r") as f:
+            content = f.read()
+        print(f"Successfully read file: {file_path}")
+        return {"original_file_content": content}
+    except FileNotFoundError:
+        error_message = f"File not found at path: {full_path}"
+        print(error_message)
+        return {"error": error_message}
+    except Exception as e:
+        error_message = f"An error occurred while reading the file: {e}"
+        print(error_message)
+        return {"error": error_message}
+
+
+def generate_code(state: dict) -> dict:
+    print("---GENERATING NEW FILE CONTENT---")
+    llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=os.getenv("OPENAI_API_KEY"))
+
+    prompt_template = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an expert software engineer. Your task is to rewrite the provided file to resolve the given GitHub issue.\n"
+                "You MUST return the ENTIRE, complete, new version of the file. Do NOT just provide a diff, a patch, or a code snippet.\n"
+                "Do NOT include any explanations, commentary, or markdown code fences like ```python ... ```. Your output should be ready to be written directly to a file.",
+            ),
+            (
+                "user",
+                "Please rewrite the file '{file_to_change}' to address the following issue.\n\n"
+                "**Issue Title:** {issue_title}\n"
+                "**Issue Body:**\n{issue_body}\n\n"
+                "**Original File Content:**\n"
+                "```\n"
+                "{original_file_content}\n"
+                "```\n\n"
+                "Now, provide the complete and updated content for the file '{file_to_change}':",
+            ),
+        ]
+    )
+
+    chain = prompt_template | llm
+
+    print("Invoking LLM to generate new code...")
+    response = chain.invoke(
+        {
+            "issue_title": state["issue_title"],
+            "issue_body": state["issue_body"],
+            "file_to_change": state["file_to_change"],
+            "original_file_content": state["original_file_content"],
+        }
+    )
+
+    new_content = response.content.strip()
+    print("LLM generated new content successfully.")
+
+    return {"new_file_content": new_content}

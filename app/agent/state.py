@@ -9,4 +9,6 @@ class AppState(TypedDict):
     repo_local_path: Optional[str]
     repo_file_list: Optional[str]
     file_to_change: Optional[str]
+    original_file_content: Optional[str]
+    new_file_content: Optional[str]
     error: Optional[str]
